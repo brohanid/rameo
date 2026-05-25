@@ -9,7 +9,7 @@ export async function savePaymentConfig(formData: FormData) {
 
   // Verify Admin role again for security
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   const { data: userData } = await supabase
     .from('users')
@@ -17,7 +17,7 @@ export async function savePaymentConfig(formData: FormData) {
     .eq('id', user.id)
     .single()
 
-  if (userData?.role !== 'admin') return { error: 'Unauthorized: Admin only' }
+  if (userData?.role !== 'admin') throw new Error('Unauthorized: Admin only')
 
   const gatewayName = formData.get('gateway_name') as string
   const isActive = formData.get('is_active') === 'true'
@@ -50,21 +50,20 @@ export async function savePaymentConfig(formData: FormData) {
     }, { onConflict: 'gateway_name' })
 
   if (error) {
-    return { error: 'Gagal menyimpan konfigurasi: ' + error.message }
+    throw new Error('Gagal menyimpan konfigurasi: ' + error.message)
   }
 
   revalidatePath('/admin/payments')
-  return { success: true }
 }
 
 export async function approveWithdrawal(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   // Check role
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (userData?.role !== 'admin') return { error: 'Unauthorized: Admin only' }
+  if (userData?.role !== 'admin') throw new Error('Unauthorized: Admin only')
 
   const reqId = formData.get('request_id') as string
 
@@ -75,7 +74,7 @@ export async function approveWithdrawal(formData: FormData) {
     .eq('id', reqId)
     .eq('status', 'pending')
 
-  if (updateError) return { error: 'Gagal memproses pengajuan: ' + updateError.message }
+  if (updateError) throw new Error('Gagal memproses pengajuan: ' + updateError.message)
 
   // 2. Update Ledger Status to success
   await supabase
@@ -85,16 +84,15 @@ export async function approveWithdrawal(formData: FormData) {
     .eq('tipe', 'withdrawal')
 
   revalidatePath('/admin/withdrawals')
-  return { success: true }
 }
 
 export async function rejectWithdrawal(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (userData?.role !== 'admin') return { error: 'Unauthorized: Admin only' }
+  if (userData?.role !== 'admin') throw new Error('Unauthorized: Admin only')
 
   const reqId = formData.get('request_id') as string
   const alasan = formData.get('catatan_admin') as string
@@ -107,7 +105,7 @@ export async function rejectWithdrawal(formData: FormData) {
     .eq('status', 'pending')
     .single()
 
-  if (reqError || !request) return { error: 'Pengajuan tidak ditemukan atau sudah diproses' }
+  if (reqError || !request) throw new Error('Pengajuan tidak ditemukan atau sudah diproses')
 
   // 2. Update Request Status
   const { error: updateError } = await supabase
@@ -119,7 +117,7 @@ export async function rejectWithdrawal(formData: FormData) {
     })
     .eq('id', reqId)
 
-  if (updateError) return { error: 'Gagal menolak pengajuan' }
+  if (updateError) throw new Error('Gagal menolak pengajuan')
 
   // 3. Mark Ledger as failed
   await supabase
@@ -138,5 +136,4 @@ export async function rejectWithdrawal(formData: FormData) {
   }
 
   revalidatePath('/admin/withdrawals')
-  return { success: true }
 }

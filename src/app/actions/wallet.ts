@@ -15,13 +15,13 @@ export async function submitTopUp(formData: FormData) {
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError || !user) {
-    return { error: 'Unauthorized' }
+    throw new Error('Unauthorized')
   }
 
   // Parse amount
   const parsed = TopUpSchema.safeParse(Object.fromEntries(formData.entries()))
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message }
+    throw new Error(parsed.error.issues[0].message)
   }
 
   const { amount } = parsed.data
@@ -33,9 +33,8 @@ export async function submitTopUp(formData: FormData) {
     // Revalidate dashboard layout so balance updates
     revalidatePath('/dashboard', 'layout')
     
-    return { success: true }
   } catch (err: any) {
-    return { error: err.message }
+    throw new Error(err.message)
   }
 }
 
@@ -50,16 +49,16 @@ export async function requestWithdrawal(formData: FormData) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   // Check role
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (userData?.role !== 'publisher') return { error: 'Hanya Publisher yang dapat melakukan penarikan dana' }
+  if (userData?.role !== 'publisher') throw new Error('Hanya Publisher yang dapat melakukan penarikan dana')
 
   // Parse Form
   const parsed = WithdrawalSchema.safeParse(Object.fromEntries(formData.entries()))
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message }
+    throw new Error(parsed.error.issues[0].message)
   }
 
   const payload = parsed.data
@@ -71,8 +70,8 @@ export async function requestWithdrawal(formData: FormData) {
     .eq('user_id', user.id)
     .single()
 
-  if (walletError || !wallet) return { error: 'Wallet tidak ditemukan' }
-  if (wallet.balance < payload.amount) return { error: 'Saldo tidak mencukupi' }
+  if (walletError || !wallet) throw new Error('Wallet tidak ditemukan')
+  if (wallet.balance < payload.amount) throw new Error('Saldo tidak mencukupi')
 
   try {
     // 1. Deduct Balance
@@ -115,9 +114,8 @@ export async function requestWithdrawal(formData: FormData) {
     if (txError) console.error('Ledger error for withdrawal', txError)
 
     revalidatePath('/dashboard/wallet')
-    return { success: true }
   } catch (err: any) {
-    return { error: err.message }
+    throw new Error(err.message)
   }
 }
 

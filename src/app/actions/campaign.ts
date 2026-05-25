@@ -24,16 +24,16 @@ export async function submitCampaign(formData: FormData) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   // Check if role is umkm
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (userData?.role !== 'umkm') return { error: 'Hanya UMKM yang dapat membuat kampanye' }
+  if (userData?.role !== 'umkm') throw new Error('Hanya UMKM yang dapat membuat kampanye')
 
   // Parse Form
   const parsed = CampaignSchema.safeParse(Object.fromEntries(formData.entries()))
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message }
+    throw new Error(parsed.error.issues[0].message)
   }
 
   const payload = parsed.data
@@ -42,7 +42,7 @@ export async function submitCampaign(formData: FormData) {
   try {
     await processCampaignEscrow(supabase, user.id, totalBudget, payload)
   } catch (err: any) {
-    return { error: err.message }
+    throw new Error(err.message)
   }
 
   revalidatePath('/dashboard/campaigns')
@@ -52,7 +52,7 @@ export async function submitCampaign(formData: FormData) {
 export async function approveTask(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   const taskId = formData.get('task_id') as string
 
@@ -73,21 +73,20 @@ export async function approveTask(formData: FormData) {
     if (updateError) throw new Error('Gagal update status tugas: ' + updateError.message)
 
     revalidatePath('/dashboard/campaigns')
-    return { success: true }
   } catch (err: any) {
-    return { error: err.message }
+    throw new Error(err.message)
   }
 }
 
 export async function rejectTask(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   const taskId = formData.get('task_id') as string
   const alasan = formData.get('alasan_reject') as string
 
-  if (!alasan || alasan.length < 10) return { error: 'Alasan penolakan minimal 10 karakter' }
+  if (!alasan || alasan.length < 10) throw new Error('Alasan penolakan minimal 10 karakter')
 
   const { error: updateError } = await supabase
     .from('tasks')
@@ -98,8 +97,7 @@ export async function rejectTask(formData: FormData) {
     })
     .eq('id', taskId)
 
-  if (updateError) return { error: 'Gagal menolak tugas: ' + updateError.message }
+  if (updateError) throw new Error('Gagal menolak tugas: ' + updateError.message)
 
   revalidatePath('/dashboard/campaigns')
-  return { success: true }
 }

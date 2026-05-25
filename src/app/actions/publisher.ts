@@ -9,13 +9,13 @@ export async function takeJob(formData: FormData) {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   const campaignId = formData.get('campaign_id') as string
 
   // Check role
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (userData?.role !== 'publisher') return { error: 'Hanya Publisher yang dapat mengambil tugas' }
+  if (userData?.role !== 'publisher') throw new Error('Hanya Publisher yang dapat mengambil tugas')
 
   // 1. Check if campaign exists, is active, and has quota
   const { data: campaign, error: campError } = await supabase
@@ -24,9 +24,9 @@ export async function takeJob(formData: FormData) {
     .eq('id', campaignId)
     .single()
 
-  if (campError || !campaign) return { error: 'Kampanye tidak ditemukan' }
-  if (campaign.status !== 'active') return { error: 'Kampanye sudah tidak aktif' }
-  if (campaign.kuota_terpakai >= campaign.max_kuota) return { error: 'Kuota kampanye sudah penuh' }
+  if (campError || !campaign) throw new Error('Kampanye tidak ditemukan')
+  if (campaign.status !== 'active') throw new Error('Kampanye sudah tidak aktif')
+  if (campaign.kuota_terpakai >= campaign.max_kuota) throw new Error('Kuota kampanye sudah penuh')
 
   // 2. Check for double take
   const { data: existingTask } = await supabase
@@ -37,7 +37,7 @@ export async function takeJob(formData: FormData) {
     .single()
 
   if (existingTask) {
-    return { error: 'Anda sudah mengambil tugas ini sebelumnya' }
+    throw new Error('Anda sudah mengambil tugas ini sebelumnya')
   }
 
   // 3. Take Job: Insert Task and Update Campaign Quota
@@ -51,7 +51,7 @@ export async function takeJob(formData: FormData) {
     .select()
     .single()
 
-  if (taskError) return { error: 'Gagal mengambil tugas: ' + taskError.message }
+  if (taskError) throw new Error('Gagal mengambil tugas: ' + taskError.message)
 
   const { error: updateCampError } = await supabase
     .from('campaigns')
@@ -70,13 +70,13 @@ export async function takeJob(formData: FormData) {
 export async function submitProof(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Unauthorized' }
+  if (!user) throw new Error('Unauthorized')
 
   const taskId = formData.get('task_id') as string
   const proofUrl = formData.get('url_bukti') as string
 
   if (!proofUrl || !proofUrl.startsWith('http')) {
-    return { error: 'URL Bukti tidak valid' }
+    throw new Error('URL Bukti tidak valid')
   }
 
   // Ensure task belongs to user
@@ -87,9 +87,9 @@ export async function submitProof(formData: FormData) {
     .eq('publisher_id', user.id)
     .single()
 
-  if (checkError || !task) return { error: 'Tugas tidak ditemukan' }
+  if (checkError || !task) throw new Error('Tugas tidak ditemukan')
   if (task.status !== 'in_progress' && task.status !== 'rejected') {
-    return { error: 'Tugas tidak dalam status yang dapat di-submit' }
+    throw new Error('Tugas tidak dalam status yang dapat di-submit')
   }
 
   const { error: updateError } = await supabase
@@ -101,8 +101,7 @@ export async function submitProof(formData: FormData) {
     })
     .eq('id', taskId)
 
-  if (updateError) return { error: 'Gagal mengirim bukti: ' + updateError.message }
+  if (updateError) throw new Error('Gagal mengirim bukti: ' + updateError.message)
 
   revalidatePath('/dashboard/my-tasks')
-  return { success: true }
 }

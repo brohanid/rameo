@@ -20,13 +20,13 @@ export async function submitProfile(formData: FormData) {
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError || !user) {
-    return { error: 'Anda harus login untuk melengkapi profil.' }
+    throw new Error('Anda harus login untuk melengkapi profil.')
   }
 
   // Parse form data
   const parsed = ProfileSchema.safeParse(Object.fromEntries(formData.entries()))
   if (!parsed.success) {
-    return { error: 'Data tidak valid. Mohon periksa kembali input Anda.' }
+    throw new Error('Data tidak valid. Mohon periksa kembali input Anda.')
   }
 
   const { role, nama_bisnis, kategori, whatsapp, blog_url, instagram_url } = parsed.data
@@ -40,7 +40,7 @@ export async function submitProfile(formData: FormData) {
     .eq('id', user.id)
 
   if (userUpdateError) {
-    return { error: 'Gagal memperbarui profil utama: ' + userUpdateError.message }
+    throw new Error('Gagal memperbarui profil utama: ' + userUpdateError.message)
   }
 
   // 2. Insert into specific profile table
@@ -55,7 +55,7 @@ export async function submitProfile(formData: FormData) {
       })
     
     if (umkmError) {
-      return { error: 'Gagal menyimpan profil UMKM: ' + umkmError.message }
+      throw new Error('Gagal menyimpan profil UMKM: ' + umkmError.message)
     }
   } else if (role === 'publisher') {
     const { error: publisherError } = await supabase
@@ -67,7 +67,7 @@ export async function submitProfile(formData: FormData) {
       })
 
     if (publisherError) {
-      return { error: 'Gagal menyimpan profil Publisher: ' + publisherError.message }
+      throw new Error('Gagal menyimpan profil Publisher: ' + publisherError.message)
     }
   }
 
