@@ -17,7 +17,7 @@ export async function login(formData: FormData) {
   const parsed = AuthSchema.safeParse(Object.fromEntries(formData.entries()))
   
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message }
+    redirect(`/login?error=${encodeURIComponent(parsed.error.issues[0].message)}`)
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -26,7 +26,7 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
   revalidatePath('/', 'layout')
@@ -40,7 +40,7 @@ export async function signup(formData: FormData) {
   const parsed = AuthSchema.safeParse(Object.fromEntries(formData.entries()))
   
   if (!parsed.success) {
-    return { error: parsed.error.issues[0].message }
+    redirect(`/register?error=${encodeURIComponent(parsed.error.issues[0].message)}`)
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -49,7 +49,7 @@ export async function signup(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    redirect(`/register?error=${encodeURIComponent(error.message)}`)
   }
 
   revalidatePath('/', 'layout')
