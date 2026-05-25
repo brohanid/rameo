@@ -1,0 +1,14 @@
+# Mengabaikan file dan direktori yang tidak perlu saat Docker build
+node_modules
+.next
+.git
+.vscode
+.env
+.env.*.local
+.DS_Store
+*.log
+coverage
+README.md
+PRD_*.md
+AGENTS.md
+CLAUDE.md
